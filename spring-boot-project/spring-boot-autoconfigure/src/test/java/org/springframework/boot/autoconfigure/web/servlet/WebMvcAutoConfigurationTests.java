@@ -47,6 +47,7 @@ import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguratio
 import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.autoconfigure.validation.ValidatorAdapter;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter;
+import org.springframework.boot.context.properties.IncompatibleConfigurationException;
 import org.springframework.boot.test.context.assertj.AssertableWebApplicationContext;
 import org.springframework.boot.test.context.runner.ContextConsumer;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -77,7 +78,6 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.accept.ContentNegotiationStrategy;
 import org.springframework.web.accept.ParameterContentNegotiationStrategy;
-import org.springframework.web.accept.PathExtensionContentNegotiationStrategy;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -118,6 +118,7 @@ import org.springframework.web.servlet.resource.VersionResourceResolver;
 import org.springframework.web.servlet.resource.VersionStrategy;
 import org.springframework.web.servlet.view.AbstractView;
 import org.springframework.web.servlet.view.ContentNegotiatingViewResolver;
+import org.springframework.web.util.UrlPathHelper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -139,8 +140,9 @@ class WebMvcAutoConfigurationTests {
 	private static final MockServletWebServerFactory webServerFactory = new MockServletWebServerFactory();
 
 	private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
-			.withConfiguration(AutoConfigurations.of(WebMvcAutoConfiguration.class,
-					HttpMessageConvertersAutoConfiguration.class, PropertyPlaceholderAutoConfiguration.class))
+			.withConfiguration(
+					AutoConfigurations.of(WebMvcAutoConfiguration.class, DispatcherServletAutoConfiguration.class,
+							HttpMessageConvertersAutoConfiguration.class, PropertyPlaceholderAutoConfiguration.class))
 			.withUserConfiguration(Config.class);
 
 	@Test
@@ -276,8 +278,12 @@ class WebMvcAutoConfigurationTests {
 	}
 
 	@Test
-	void noLocaleResolver() {
-		this.contextRunner.run((context) -> assertThat(context).doesNotHaveBean(LocaleResolver.class));
+	void defaultLocaleResolver() {
+		this.contextRunner.run((context) -> {
+			assertThat(context).hasSingleBean(LocaleResolver.class);
+			LocaleResolver localeResolver = context.getBean(LocaleResolver.class);
+			assertThat(((AcceptHeaderLocaleResolver) localeResolver).getDefaultLocale()).isNull();
+		});
 	}
 
 	@Test
@@ -742,6 +748,7 @@ class WebMvcAutoConfigurationTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void defaultPathMatching() {
 		this.contextRunner.run((context) -> {
 			RequestMappingHandlerMapping handlerMapping = context.getBean(RequestMappingHandlerMapping.class);
@@ -752,6 +759,7 @@ class WebMvcAutoConfigurationTests {
 
 	@Test
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	void useSuffixPatternMatch() {
 		this.contextRunner.withPropertyValues("spring.mvc.pathmatch.use-suffix-pattern:true",
 				"spring.mvc.pathmatch.use-registered-suffix-pattern:true").run((context) -> {
@@ -759,6 +767,24 @@ class WebMvcAutoConfigurationTests {
 					assertThat(handlerMapping.useSuffixPatternMatch()).isTrue();
 					assertThat(handlerMapping.useRegisteredSuffixPatternMatch()).isTrue();
 				});
+	}
+
+	@Test
+	void usePathPatternParser() {
+		this.contextRunner.withPropertyValues("spring.mvc.pathmatch.matching-strategy:path_pattern_parser")
+				.run((context) -> {
+					RequestMappingHandlerMapping handlerMapping = context.getBean(RequestMappingHandlerMapping.class);
+					assertThat(handlerMapping.usesPathPatterns()).isTrue();
+				});
+	}
+
+	@Test
+	void incompatiblePathMatchingConfiguration() {
+		this.contextRunner
+				.withPropertyValues("spring.mvc.pathmatch.matching-strategy:path_pattern_parser",
+						"spring.mvc.pathmatch.use-suffix-pattern:true")
+				.run((context) -> assertThat(context.getStartupFailure()).getRootCause()
+						.isInstanceOf(IncompatibleConfigurationException.class));
 	}
 
 	@Test
@@ -805,12 +831,15 @@ class WebMvcAutoConfigurationTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void contentNegotiationStrategySkipsPathExtension() throws Exception {
 		ContentNegotiationStrategy delegate = mock(ContentNegotiationStrategy.class);
 		ContentNegotiationStrategy strategy = new WebMvcAutoConfiguration.OptionalPathExtensionContentNegotiationStrategy(
 				delegate);
 		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setAttribute(PathExtensionContentNegotiationStrategy.class.getName() + ".SKIP", Boolean.TRUE);
+		request.setAttribute(
+				org.springframework.web.accept.PathExtensionContentNegotiationStrategy.class.getName() + ".SKIP",
+				Boolean.TRUE);
 		ServletWebRequest webRequest = new ServletWebRequest(request);
 		List<MediaType> mediaTypes = strategy.resolveMediaTypes(webRequest);
 		assertThat(mediaTypes).containsOnly(MediaType.ALL);
@@ -846,6 +875,22 @@ class WebMvcAutoConfigurationTests {
 					assertThat(service.convert(new Example("spring", new Date()), String.class)).isEqualTo("spring");
 					assertThat(service.convert("boot", Example.class)).extracting(Example::getName).isEqualTo("boot");
 				});
+	}
+
+	@Test
+	void urlPathHelperUsesFullPathByDefault() {
+		this.contextRunner.run((context) -> {
+			UrlPathHelper urlPathHelper = context.getBean(UrlPathHelper.class);
+			assertThat(urlPathHelper).extracting("alwaysUseFullPath").isEqualTo(true);
+		});
+	}
+
+	@Test
+	void urlPathHelperDoesNotUseFullPathWithServletMapping() {
+		this.contextRunner.withPropertyValues("spring.mvc.servlet.path=/test/").run((context) -> {
+			UrlPathHelper urlPathHelper = context.getBean(UrlPathHelper.class);
+			assertThat(urlPathHelper).extracting("alwaysUseFullPath").isEqualTo(false);
+		});
 	}
 
 	private void assertCacheControl(AssertableWebApplicationContext context) {
@@ -1110,6 +1155,7 @@ class WebMvcAutoConfigurationTests {
 	static class CustomConfigurer implements WebMvcConfigurer {
 
 		@Override
+		@SuppressWarnings("deprecation")
 		public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
 			configurer.favorPathExtension(true);
 		}
