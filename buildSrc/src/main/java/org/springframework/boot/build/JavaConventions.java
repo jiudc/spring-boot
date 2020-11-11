@@ -18,10 +18,13 @@ package org.springframework.boot.build;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import io.spring.javaformat.gradle.FormatTask;
 import io.spring.javaformat.gradle.SpringJavaFormatPlugin;
@@ -35,6 +38,8 @@ import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.quality.CheckstyleExtension;
 import org.gradle.api.plugins.quality.CheckstylePlugin;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
@@ -104,18 +109,41 @@ class JavaConventions {
 		extractLegalResources.getDestinationDirectory().set(project.getLayout().getBuildDirectory().dir("legal"));
 		extractLegalResources.setResourcesNames(Arrays.asList("LICENSE.txt", "NOTICE.txt"));
 		extractLegalResources.property("version", project.getVersion().toString());
-		project.getTasks().withType(Jar.class, (jar) -> project.afterEvaluate((evaluated) -> {
-			jar.metaInf((metaInf) -> metaInf.from(extractLegalResources));
-			jar.manifest((manifest) -> {
-				Map<String, Object> attributes = new TreeMap<>();
-				attributes.put("Automatic-Module-Name", project.getName().replace("-", "."));
-				attributes.put("Build-Jdk-Spec", project.property("sourceCompatibility"));
-				attributes.put("Built-By", "Spring");
-				attributes.put("Implementation-Title", project.getDescription());
-				attributes.put("Implementation-Version", project.getVersion());
-				manifest.attributes(attributes);
-			});
-		}));
+		SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+		Set<String> sourceJarTaskNames = sourceSets.stream().map(SourceSet::getSourcesJarTaskName)
+				.collect(Collectors.toSet());
+		Set<String> javadocJarTaskNames = sourceSets.stream().map(SourceSet::getJavadocJarTaskName)
+				.collect(Collectors.toSet());
+		Set<String> jarTaskNames = sourceSets.stream().map(SourceSet::getJarTaskName).collect(Collectors.toSet());
+		Set<String> jarTasksOfInterest = new HashSet<String>();
+		jarTasksOfInterest.addAll(sourceJarTaskNames);
+		jarTasksOfInterest.addAll(javadocJarTaskNames);
+		jarTasksOfInterest.addAll(jarTaskNames);
+		project.getTasks().matching((task) -> jarTasksOfInterest.contains(task.getName())).withType(Jar.class,
+				(jar) -> project.afterEvaluate((evaluated) -> {
+					jar.metaInf((metaInf) -> metaInf.from(extractLegalResources));
+					jar.manifest((manifest) -> {
+						Map<String, Object> attributes = new TreeMap<>();
+						attributes.put("Automatic-Module-Name", project.getName().replace("-", "."));
+						attributes.put("Build-Jdk-Spec", project.property("sourceCompatibility"));
+						attributes.put("Built-By", "Spring");
+						attributes.put("Implementation-Title",
+								determineImplementationTitle(project, sourceJarTaskNames, javadocJarTaskNames, jar));
+						attributes.put("Implementation-Version", project.getVersion());
+						manifest.attributes(attributes);
+					});
+				}));
+	}
+
+	private String determineImplementationTitle(Project project, Set<String> sourceJarTaskNames,
+			Set<String> javadocJarTaskNames, Jar jar) {
+		if (sourceJarTaskNames.contains(jar.getName())) {
+			return "Source for " + project.getName();
+		}
+		if (javadocJarTaskNames.contains(jar.getName())) {
+			return "Javadoc for " + project.getName();
+		}
+		return project.getDescription();
 	}
 
 	private void configureTestConventions(Project project) {
