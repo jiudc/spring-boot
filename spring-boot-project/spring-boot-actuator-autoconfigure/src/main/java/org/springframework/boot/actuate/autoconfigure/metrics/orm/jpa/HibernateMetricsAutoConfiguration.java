@@ -27,7 +27,6 @@ import io.micrometer.core.instrument.binder.jpa.HibernateMetrics;
 import org.hibernate.SessionFactory;
 
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -55,12 +54,12 @@ public class HibernateMetricsAutoConfiguration implements SmartInitializingSingl
 
 	private static final String ENTITY_MANAGER_FACTORY_SUFFIX = "entityManagerFactory";
 
-	private Map<String, EntityManagerFactory> entityManagerFactories;
+	private final Map<String, EntityManagerFactory> entityManagerFactories;
 
-	private MeterRegistry meterRegistry;
+	private final MeterRegistry meterRegistry;
 
-	@Autowired
-	void injectDependencies(Map<String, EntityManagerFactory> entityManagerFactories, MeterRegistry meterRegistry) {
+	public HibernateMetricsAutoConfiguration(Map<String, EntityManagerFactory> entityManagerFactories,
+			MeterRegistry meterRegistry) {
 		this.entityManagerFactories = entityManagerFactories;
 		this.meterRegistry = meterRegistry;
 	}

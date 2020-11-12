@@ -45,6 +45,7 @@ import org.springframework.http.converter.support.AllEncompassingFormHttpMessage
  * @author Phillip Webb
  * @author Andy Wilkinson
  * @author Artsiom Yudovin
+ * @author Sebastien Deleuze
  * @since 1.3.0
  */
 @Order(LoggingApplicationListener.DEFAULT_ORDER + 1)
@@ -59,14 +60,24 @@ public class BackgroundPreinitializer implements ApplicationListener<SpringAppli
 	 */
 	public static final String IGNORE_BACKGROUNDPREINITIALIZER_PROPERTY_NAME = "spring.backgroundpreinitializer.ignore";
 
-	private static final AtomicBoolean preinitializationStarted = new AtomicBoolean(false);
+	private static final AtomicBoolean preinitializationStarted = new AtomicBoolean();
 
 	private static final CountDownLatch preinitializationComplete = new CountDownLatch(1);
 
+	private static final boolean ENABLED;
+
+	static {
+		ENABLED = !Boolean.getBoolean(IGNORE_BACKGROUNDPREINITIALIZER_PROPERTY_NAME)
+				&& System.getProperty("org.graalvm.nativeimage.imagecode") == null
+				&& Runtime.getRuntime().availableProcessors() > 1;
+	}
+
 	@Override
 	public void onApplicationEvent(SpringApplicationEvent event) {
-		if (!Boolean.getBoolean(IGNORE_BACKGROUNDPREINITIALIZER_PROPERTY_NAME)
-				&& event instanceof ApplicationEnvironmentPreparedEvent && multipleProcessors()
+		if (!ENABLED) {
+			return;
+		}
+		if (event instanceof ApplicationEnvironmentPreparedEvent
 				&& preinitializationStarted.compareAndSet(false, true)) {
 			performPreinitialization();
 		}
@@ -79,10 +90,6 @@ public class BackgroundPreinitializer implements ApplicationListener<SpringAppli
 				Thread.currentThread().interrupt();
 			}
 		}
-	}
-
-	private boolean multipleProcessors() {
-		return Runtime.getRuntime().availableProcessors() > 1;
 	}
 
 	private void performPreinitialization() {

@@ -20,7 +20,7 @@ elif [[ $RELEASE_TYPE = "RC" ]]; then
 	stageVersion=$( get_next_rc_release $snapshotVersion)
 	nextVersion=$snapshotVersion
 elif [[ $RELEASE_TYPE = "RELEASE" ]]; then
-	stageVersion=$( get_next_release $snapshotVersion "RELEASE" )
+	stageVersion=$( get_next_release $snapshotVersion)
 	nextVersion=$( bump_version_number $snapshotVersion)
 else
 	echo "Unknown release type $RELEASE_TYPE" >&2; exit 1;
@@ -43,7 +43,7 @@ if [[ $nextVersion != $snapshotVersion ]]; then
 	sed -i "s/version=$snapshotVersion/version=$nextVersion/" gradle.properties
 	git add gradle.properties > /dev/null
 	git commit -m"Next development version (v$nextVersion)" > /dev/null
-fi;
+fi
 
 echo "DONE"
 

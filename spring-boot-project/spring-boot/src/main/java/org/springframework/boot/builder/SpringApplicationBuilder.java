@@ -28,7 +28,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.beans.factory.support.BeanNameGenerator;
+import org.springframework.boot.ApplicationContextFactory;
 import org.springframework.boot.Banner;
+import org.springframework.boot.BootstrapRegistry;
+import org.springframework.boot.Bootstrapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.convert.ApplicationConversionService;
@@ -39,6 +42,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.metrics.ApplicationStartup;
 import org.springframework.util.StringUtils;
 
 /**
@@ -75,7 +79,7 @@ public class SpringApplicationBuilder {
 
 	private SpringApplicationBuilder parent;
 
-	private final AtomicBoolean running = new AtomicBoolean(false);
+	private final AtomicBoolean running = new AtomicBoolean();
 
 	private final Set<Class<?>> sources = new LinkedHashSet<>();
 
@@ -272,9 +276,23 @@ public class SpringApplicationBuilder {
 	 * Explicitly set the context class to be used.
 	 * @param cls the context class to use
 	 * @return the current builder
+	 * @deprecated since 2.4.0 in favor of
+	 * {@link #contextFactory(ApplicationContextFactory)}
 	 */
+	@Deprecated
 	public SpringApplicationBuilder contextClass(Class<? extends ConfigurableApplicationContext> cls) {
 		this.application.setApplicationContextClass(cls);
+		return this;
+	}
+
+	/**
+	 * Explicitly set the factory used to create the application context.
+	 * @param factory the factory to use
+	 * @return the current builder
+	 * @since 2.4.0
+	 */
+	public SpringApplicationBuilder contextFactory(ApplicationContextFactory factory) {
+		this.application.setApplicationContextFactory(factory);
 		return this;
 	}
 
@@ -378,6 +396,18 @@ public class SpringApplicationBuilder {
 	 */
 	public SpringApplicationBuilder setAddConversionService(boolean addConversionService) {
 		this.application.setAddConversionService(addConversionService);
+		return this;
+	}
+
+	/**
+	 * Adds a {@link Bootstrapper} that can be used to initialize the
+	 * {@link BootstrapRegistry}.
+	 * @param bootstrapper the bootstraper
+	 * @return the current builder
+	 * @since 2.4.0
+	 */
+	public SpringApplicationBuilder addBootstrapper(Bootstrapper bootstrapper) {
+		this.application.addBootstrapper(bootstrapper);
 		return this;
 	}
 
@@ -536,6 +566,18 @@ public class SpringApplicationBuilder {
 	 */
 	public SpringApplicationBuilder listeners(ApplicationListener<?>... listeners) {
 		this.application.addListeners(listeners);
+		return this;
+	}
+
+	/**
+	 * Configure the {@link ApplicationStartup} to be used with the
+	 * {@link ApplicationContext} for collecting startup metrics.
+	 * @param applicationStartup the application startup to use
+	 * @return the current builder
+	 * @since 2.4.0
+	 */
+	public SpringApplicationBuilder applicationStartup(ApplicationStartup applicationStartup) {
+		this.application.setApplicationStartup(applicationStartup);
 		return this;
 	}
 

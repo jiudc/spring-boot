@@ -28,7 +28,7 @@ import javax.cache.expiry.Duration;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
-import com.hazelcast.cache.HazelcastCachingProvider;
+import com.hazelcast.cache.impl.HazelcastServerCachingProvider;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.spring.cache.HazelcastCacheManager;
@@ -42,6 +42,7 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.cache.support.MockCachingProvider;
+import org.springframework.boot.autoconfigure.cache.support.MockCachingProvider.MockCacheManager;
 import org.springframework.boot.autoconfigure.hazelcast.HazelcastAutoConfiguration;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.testsupport.classpath.ClassPathExclusions;
@@ -369,8 +370,9 @@ class CacheAutoConfigurationTests extends AbstractCacheAutoConfigurationTests {
 					assertThat(cacheManager.getCacheNames()).containsOnly("one", "two");
 					CompleteConfiguration<?, ?> defaultCacheConfiguration = context
 							.getBean(CompleteConfiguration.class);
-					verify(cacheManager.getCacheManager()).createCache("one", defaultCacheConfiguration);
-					verify(cacheManager.getCacheManager()).createCache("two", defaultCacheConfiguration);
+					MockCacheManager mockCacheManager = (MockCacheManager) cacheManager.getCacheManager();
+					assertThat(mockCacheManager.getConfigurations()).containsEntry("one", defaultCacheConfiguration)
+							.containsEntry("two", defaultCacheConfiguration);
 				});
 	}
 
@@ -479,7 +481,7 @@ class CacheAutoConfigurationTests extends AbstractCacheAutoConfigurationTests {
 
 	@Test
 	void hazelcastAsJCacheWithCaches() {
-		String cachingProviderFqn = HazelcastCachingProvider.class.getName();
+		String cachingProviderFqn = HazelcastServerCachingProvider.class.getName();
 		try {
 			this.contextRunner.withUserConfiguration(DefaultCacheConfiguration.class)
 					.withPropertyValues("spring.cache.type=jcache",
@@ -498,7 +500,7 @@ class CacheAutoConfigurationTests extends AbstractCacheAutoConfigurationTests {
 
 	@Test
 	void hazelcastAsJCacheWithConfig() {
-		String cachingProviderFqn = HazelcastCachingProvider.class.getName();
+		String cachingProviderFqn = HazelcastServerCachingProvider.class.getName();
 		try {
 			String configLocation = "org/springframework/boot/autoconfigure/hazelcast/hazelcast-specific.xml";
 			this.contextRunner.withUserConfiguration(DefaultCacheConfiguration.class)
@@ -519,7 +521,7 @@ class CacheAutoConfigurationTests extends AbstractCacheAutoConfigurationTests {
 
 	@Test
 	void hazelcastAsJCacheWithExistingHazelcastInstance() {
-		String cachingProviderFqn = HazelcastCachingProvider.class.getName();
+		String cachingProviderFqn = HazelcastServerCachingProvider.class.getName();
 		this.contextRunner.withConfiguration(AutoConfigurations.of(HazelcastAutoConfiguration.class))
 				.withUserConfiguration(DefaultCacheConfiguration.class)
 				.withPropertyValues("spring.cache.type=jcache", "spring.cache.jcache.provider=" + cachingProviderFqn)
@@ -603,19 +605,19 @@ class CacheAutoConfigurationTests extends AbstractCacheAutoConfigurationTests {
 
 	@Test
 	void jCacheCacheWithCachesAndCustomizer() {
-		String cachingProviderClassName = HazelcastCachingProvider.class.getName();
+		String cachingProviderFqn = HazelcastServerCachingProvider.class.getName();
 		try {
 			this.contextRunner.withUserConfiguration(JCacheWithCustomizerConfiguration.class)
 					.withPropertyValues("spring.cache.type=jcache",
-							"spring.cache.jcache.provider=" + cachingProviderClassName,
-							"spring.cache.cacheNames[0]=foo", "spring.cache.cacheNames[1]=bar")
+							"spring.cache.jcache.provider=" + cachingProviderFqn, "spring.cache.cacheNames[0]=foo",
+							"spring.cache.cacheNames[1]=bar")
 					.run((context) ->
 					// see customizer
 					assertThat(getCacheManager(context, JCacheCacheManager.class).getCacheNames()).containsOnly("foo",
 							"custom1"));
 		}
 		finally {
-			Caching.getCachingProvider(cachingProviderClassName).close();
+			Caching.getCachingProvider(cachingProviderFqn).close();
 		}
 	}
 

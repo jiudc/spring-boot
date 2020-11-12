@@ -32,11 +32,13 @@ public final class DockerImageNames {
 
 	private static final String MONGO_VERSION = "4.0.10";
 
-	private static final String NEO4J_VERSION = "3.5.0";
+	private static final String NEO4J_VERSION = "4.0";
 
 	private static final String POSTGRESQL_VERSION = "9.6.12";
 
 	private static final String REDIS_VERSION = "4.0.6";
+
+	private static final String REGISTRY_VERSION = "2.7.1";
 
 	private DockerImageNames() {
 	}
@@ -97,6 +99,15 @@ public final class DockerImageNames {
 	 */
 	public static DockerImageName redis() {
 		return DockerImageName.parse("redis").withTag(REDIS_VERSION);
+	}
+
+	/**
+	 * Return a {@link DockerImageName} suitable for running a Docker registry.
+	 * @return a docker image name for running a registry
+	 * @since 2.4.0
+	 */
+	public static DockerImageName registry() {
+		return DockerImageName.parse("registry").withTag(REGISTRY_VERSION);
 	}
 
 }

@@ -29,6 +29,7 @@ dependencies {
 	implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
 	optional("ch.qos.logback:logback-classic")
+	optional("com.datastax.oss:java-driver-core")
 	optional("com.fasterxml.jackson.dataformat:jackson-dataformat-xml")
 	optional("com.github.ben-manes.caffeine:caffeine")
 	optional("com.hazelcast:hazelcast")
@@ -57,7 +58,7 @@ dependencies {
 	optional("io.micrometer:micrometer-registry-signalfx")
 	optional("io.micrometer:micrometer-registry-statsd")
 	optional("io.micrometer:micrometer-registry-wavefront")
-	optional("io.projectreactor.netty:reactor-netty")
+	optional("io.projectreactor.netty:reactor-netty-http")
 	optional("io.r2dbc:r2dbc-pool")
 	optional("io.r2dbc:r2dbc-spi")
 	optional("jakarta.jms:jakarta.jms-api")
@@ -85,6 +86,7 @@ dependencies {
 	optional("org.liquibase:liquibase-core")
 	optional("org.mongodb:mongodb-driver-reactivestreams")
 	optional("org.mongodb:mongodb-driver-sync")
+	optional("org.neo4j.driver:neo4j-java-driver")
 	optional("org.springframework:spring-jdbc")
 	optional("org.springframework:spring-jms")
 	optional("org.springframework:spring-messaging")
@@ -95,7 +97,6 @@ dependencies {
 	optional("org.springframework.data:spring-data-couchbase")
 	optional("org.springframework.data:spring-data-ldap")
 	optional("org.springframework.data:spring-data-mongodb")
-	optional("org.springframework.data:spring-data-neo4j")
 	optional("org.springframework.data:spring-data-redis")
 	optional("org.springframework.data:spring-data-elasticsearch")
 	optional("org.springframework.data:spring-data-solr")
@@ -129,6 +130,7 @@ dependencies {
 	testImplementation("org.hsqldb:hsqldb")
 	testImplementation("org.junit.jupiter:junit-jupiter")
 	testImplementation("org.mockito:mockito-core")
+	testImplementation("org.mockito:mockito-junit-jupiter")
 	testImplementation("org.skyscreamer:jsonassert")
 	testImplementation("org.springframework:spring-orm")
 	testImplementation("org.springframework.data:spring-data-elasticsearch") {
@@ -190,7 +192,7 @@ task zip(type: Zip) {
 		rename { "spring-boot-actuator-web-api.pdf" }
 	}
 	from(asciidoctor.outputDir) {
-		into "html"
+		into "htmlsingle"
 	}
 }
 

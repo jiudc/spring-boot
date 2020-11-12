@@ -110,6 +110,8 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 	 */
 	public static final String DEFAULT_PROTOCOL = "org.apache.coyote.http11.Http11NioProtocol";
 
+	private static final boolean IN_NATIVE_IMAGE = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
+
 	private File baseDirectory;
 
 	private List<Valve> engineValves = new ArrayList<>();
@@ -166,9 +168,14 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 	}
 
 	private static List<LifecycleListener> getDefaultLifecycleListeners() {
-		AprLifecycleListener aprLifecycleListener = new AprLifecycleListener();
-		return AprLifecycleListener.isAprAvailable() ? new ArrayList<>(Arrays.asList(aprLifecycleListener))
-				: new ArrayList<>();
+		ArrayList<LifecycleListener> lifecycleListeners = new ArrayList<>();
+		if (!IN_NATIVE_IMAGE) {
+			AprLifecycleListener aprLifecycleListener = new AprLifecycleListener();
+			if (AprLifecycleListener.isAprAvailable()) {
+				lifecycleListeners.add(aprLifecycleListener);
+			}
+		}
+		return lifecycleListeners;
 	}
 
 	@Override
@@ -291,7 +298,8 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 	private void addJasperInitializer(TomcatEmbeddedContext context) {
 		try {
 			ServletContainerInitializer initializer = (ServletContainerInitializer) ClassUtils
-					.forName("org.apache.jasper.servlet.JasperInitializer", null).newInstance();
+					.forName("org.apache.jasper.servlet.JasperInitializer", null).getDeclaredConstructor()
+					.newInstance();
 			context.addServletContainerInitializer(initializer, null);
 		}
 		catch (Exception ex) {
@@ -375,6 +383,9 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		}
 		configureSession(context);
 		new DisableReferenceClearingContextCustomizer().customize(context);
+		for (String webListenerClassName : getWebListenerClassNames()) {
+			context.addApplicationListener(webListenerClassName);
+		}
 		for (TomcatContextCustomizer customizer : this.tomcatContextCustomizers) {
 			customizer.customize(context);
 		}

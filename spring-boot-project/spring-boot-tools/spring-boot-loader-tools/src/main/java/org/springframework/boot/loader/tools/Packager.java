@@ -93,7 +93,7 @@ public abstract class Packager {
 	protected Packager(File source, LayoutFactory layoutFactory) {
 		Assert.notNull(source, "Source file must not be null");
 		Assert.isTrue(source.exists() && source.isFile(),
-				"Source must refer to an existing file, got " + source.getAbsolutePath());
+				() -> "Source must refer to an existing file, got " + source.getAbsolutePath());
 		this.source = source.getAbsoluteFile();
 		this.layoutFactory = layoutFactory;
 	}
@@ -167,12 +167,14 @@ public abstract class Packager {
 	protected final void write(JarFile sourceJar, Libraries libraries, AbstractJarWriter writer) throws IOException {
 		Assert.notNull(libraries, "Libraries must not be null");
 		WritableLibraries writeableLibraries = new WritableLibraries(libraries);
-		writer.useLayers(this.layers, this.layersIndex);
+		if (isLayered()) {
+			writer.useLayers(this.layers, this.layersIndex);
+		}
 		writer.writeManifest(buildManifest(sourceJar));
 		writeLoaderClasses(writer);
 		writer.writeEntries(sourceJar, getEntityTransformer(), writeableLibraries);
 		writeableLibraries.write(writer);
-		if (this.layers != null) {
+		if (isLayered()) {
 			writeLayerIndex(writer);
 		}
 	}
@@ -329,7 +331,7 @@ public abstract class Packager {
 		attributes.putValue(BOOT_CLASSES_ATTRIBUTE, layout.getRepackagedClassesLocation());
 		putIfHasLength(attributes, BOOT_LIB_ATTRIBUTE, getLayout().getLibraryLocation("", LibraryScope.COMPILE));
 		putIfHasLength(attributes, BOOT_CLASSPATH_INDEX_ATTRIBUTE, layout.getClasspathIndexFileLocation());
-		if (this.layers != null) {
+		if (isLayered()) {
 			putIfHasLength(attributes, BOOT_LAYERS_INDEX_ATTRIBUTE, layout.getLayersIndexFileLocation());
 		}
 	}
@@ -343,6 +345,10 @@ public abstract class Packager {
 		if (StringUtils.hasLength(value)) {
 			attributes.putValue(name, value);
 		}
+	}
+
+	private boolean isLayered() {
+		return this.layers != null && getLayout() instanceof Layouts.Jar;
 	}
 
 	/**
@@ -433,7 +439,7 @@ public abstract class Packager {
 					addLibrary(library);
 				}
 			});
-			if (Packager.this.layers != null && Packager.this.includeRelevantJarModeJars) {
+			if (isLayered() && Packager.this.includeRelevantJarModeJars) {
 				addLibrary(JarModeLibrary.LAYER_TOOLS);
 			}
 		}

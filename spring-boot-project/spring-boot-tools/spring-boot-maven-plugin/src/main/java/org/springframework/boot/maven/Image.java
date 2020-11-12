@@ -22,6 +22,7 @@ import java.util.function.Function;
 import org.apache.maven.artifact.Artifact;
 
 import org.springframework.boot.buildpack.platform.build.BuildRequest;
+import org.springframework.boot.buildpack.platform.build.PullPolicy;
 import org.springframework.boot.buildpack.platform.docker.type.ImageName;
 import org.springframework.boot.buildpack.platform.docker.type.ImageReference;
 import org.springframework.boot.buildpack.platform.io.Owner;
@@ -45,9 +46,13 @@ public class Image {
 
 	Map<String, String> env;
 
-	boolean cleanCache;
+	Boolean cleanCache;
 
 	boolean verboseLogging;
+
+	PullPolicy pullPolicy;
+
+	Boolean publish;
 
 	/**
 	 * The name of the created image.
@@ -97,8 +102,12 @@ public class Image {
 	 * If the cache should be cleaned before building.
 	 * @return {@code true} if the cache should be cleaned
 	 */
-	public boolean isCleanCache() {
+	public Boolean getCleanCache() {
 		return this.cleanCache;
+	}
+
+	void setCleanCache(Boolean cleanCache) {
+		this.cleanCache = cleanCache;
 	}
 
 	/**
@@ -107,6 +116,30 @@ public class Image {
 	 */
 	public boolean isVerboseLogging() {
 		return this.verboseLogging;
+	}
+
+	/**
+	 * If images should be pulled from a remote repository during image build.
+	 * @return the pull policy
+	 */
+	public PullPolicy getPullPolicy() {
+		return this.pullPolicy;
+	}
+
+	void setPullPolicy(PullPolicy pullPolicy) {
+		this.pullPolicy = pullPolicy;
+	}
+
+	/**
+	 * If the built image should be pushed to a registry.
+	 * @return {@code true} if the image should be published
+	 */
+	public Boolean getPublish() {
+		return this.publish;
+	}
+
+	void setPublish(Boolean publish) {
+		this.publish = publish;
 	}
 
 	BuildRequest getBuildRequest(Artifact artifact, Function<Owner, TarArchive> applicationContent) {
@@ -131,8 +164,16 @@ public class Image {
 		if (this.env != null && !this.env.isEmpty()) {
 			request = request.withEnv(this.env);
 		}
-		request = request.withCleanCache(this.cleanCache);
+		if (this.cleanCache != null) {
+			request = request.withCleanCache(this.cleanCache);
+		}
 		request = request.withVerboseLogging(this.verboseLogging);
+		if (this.pullPolicy != null) {
+			request = request.withPullPolicy(this.pullPolicy);
+		}
+		if (this.publish != null) {
+			request = request.withPublish(this.publish);
+		}
 		return request;
 	}
 

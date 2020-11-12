@@ -42,7 +42,9 @@ import org.springframework.boot.buildpack.platform.build.BuildLog;
 import org.springframework.boot.buildpack.platform.build.BuildRequest;
 import org.springframework.boot.buildpack.platform.build.Builder;
 import org.springframework.boot.buildpack.platform.build.Creator;
+import org.springframework.boot.buildpack.platform.build.PullPolicy;
 import org.springframework.boot.buildpack.platform.docker.TotalProgressEvent;
+import org.springframework.boot.buildpack.platform.docker.configuration.DockerConfiguration;
 import org.springframework.boot.buildpack.platform.io.Owner;
 import org.springframework.boot.buildpack.platform.io.TarArchive;
 import org.springframework.boot.loader.tools.EntryWriter;
@@ -99,7 +101,8 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 
 	/**
 	 * Image configuration, with {@code builder}, {@code runImage}, {@code name},
-	 * {@code env}, {@code cleanCache} and {@code verboseLogging} options.
+	 * {@code env}, {@code cleanCache}, {@code verboseLogging}, {@code pullPolicy}, and
+	 * {@code publish} options.
 	 * @since 2.3.0
 	 */
 	@Parameter
@@ -127,6 +130,34 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	@Parameter(property = "spring-boot.build-image.runImage", readonly = true)
 	String runImage;
 
+	/**
+	 * Alias for {@link Image#cleanCache} to support configuration via command-line
+	 * property.
+	 * @since 2.4.0
+	 */
+	@Parameter(property = "spring-boot.build-image.cleanCache", readonly = true)
+	Boolean cleanCache;
+
+	/**
+	 * Alias for {@link Image#pullPolicy} to support configuration via command-line
+	 * property.
+	 */
+	@Parameter(property = "spring-boot.build-image.pullPolicy", readonly = true)
+	PullPolicy pullPolicy;
+
+	/**
+	 * Alias for {@link Image#publish} to support configuration via command-line property.
+	 */
+	@Parameter(property = "spring-boot.build-image.publish", readonly = true)
+	Boolean publish;
+
+	/**
+	 * Docker configuration options.
+	 * @since 2.4.0
+	 */
+	@Parameter
+	private Docker docker;
+
 	@Override
 	public void execute() throws MojoExecutionException {
 		if (this.project.getPackaging().equals("pom")) {
@@ -143,7 +174,9 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	private void buildImage() throws MojoExecutionException {
 		Libraries libraries = getLibraries(Collections.emptySet());
 		try {
-			Builder builder = new Builder(new MojoBuildLog(this::getLog));
+			DockerConfiguration dockerConfiguration = (this.docker != null) ? this.docker.asDockerConfiguration()
+					: null;
+			Builder builder = new Builder(new MojoBuildLog(this::getLog), dockerConfiguration);
 			BuildRequest request = getBuildRequest(libraries);
 			builder.build(request);
 		}
@@ -152,7 +185,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 		}
 	}
 
-	private BuildRequest getBuildRequest(Libraries libraries) {
+	private BuildRequest getBuildRequest(Libraries libraries) throws MojoExecutionException {
 		Function<Owner, TarArchive> content = (owner) -> getApplicationContent(owner, libraries);
 		Image image = (this.image != null) ? this.image : new Image();
 		if (image.name == null && this.imageName != null) {
@@ -164,7 +197,24 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 		if (image.runImage == null && this.runImage != null) {
 			image.setRunImage(this.runImage);
 		}
+		if (image.cleanCache == null && this.cleanCache != null) {
+			image.setCleanCache(this.cleanCache);
+		}
+		if (image.pullPolicy == null && this.pullPolicy != null) {
+			image.setPullPolicy(this.pullPolicy);
+		}
+		if (image.publish == null && this.publish != null) {
+			image.setPublish(this.publish);
+		}
+		if (image.publish != null && image.publish && publishRegistryNotConfigured()) {
+			throw new MojoExecutionException("Publishing an image requires docker.publishRegistry to be configured");
+		}
 		return customize(image.getBuildRequest(this.project.getArtifact(), content));
+	}
+
+	private boolean publishRegistryNotConfigured() {
+		return this.docker == null || this.docker.getPublishRegistry() == null
+				|| this.docker.getPublishRegistry().isEmpty();
 	}
 
 	private TarArchive getApplicationContent(Owner owner, Libraries libraries) {

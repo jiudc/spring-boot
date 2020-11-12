@@ -268,4 +268,17 @@ class DefaultErrorAttributesTests {
 		assertThat(attributes.get("path")).isEqualTo("path");
 	}
 
+	@Test
+	void whenGetMessageIsOverriddenThenMessageAttributeContainsValueReturnedFromIt() {
+		Map<String, Object> attributes = new DefaultErrorAttributes() {
+
+			@Override
+			protected String getMessage(WebRequest webRequest, Throwable error) {
+				return "custom message";
+			}
+
+		}.getErrorAttributes(this.webRequest, ErrorAttributeOptions.of(Include.MESSAGE));
+		assertThat(attributes).containsEntry("message", "custom message");
+	}
+
 }

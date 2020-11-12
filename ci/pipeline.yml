@@ -381,7 +381,7 @@ jobs:
       params: { state: "success", commit: "git-repo" }
     - put: slack-alert
       params:
-          <<: *slack-success-params
+       <<: *slack-success-params
 - name: windows-build
   serial: true
   plan:

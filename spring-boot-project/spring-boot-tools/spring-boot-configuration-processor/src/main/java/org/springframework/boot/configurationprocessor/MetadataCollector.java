@@ -98,7 +98,7 @@ public class MetadataCollector {
 			List<ItemMetadata> items = this.previousMetadata.getItems();
 			for (ItemMetadata item : items) {
 				if (shouldBeMerged(item)) {
-					metadata.add(item);
+					metadata.addIfMissing(item);
 				}
 			}
 		}

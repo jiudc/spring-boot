@@ -89,9 +89,9 @@ class MavenBuild {
 		this.pomReplacements.put("maven-toolchains-plugin.version", "3.0.0");
 		this.pomReplacements.put("maven-war-plugin.version", "3.2.3");
 		this.pomReplacements.put("build-helper-maven-plugin.version", "3.0.0");
-		this.pomReplacements.put("spring-framework.version", "5.2.10.RELEASE");
+		this.pomReplacements.put("spring-framework.version", "5.3.0");
 		this.pomReplacements.put("jakarta-servlet.version", "4.0.4");
-		this.pomReplacements.put("kotlin.version", "1.3.72");
+		this.pomReplacements.put("kotlin.version", "1.4.10");
 	}
 
 	MavenBuild project(String project) {
@@ -170,6 +170,7 @@ class MavenBuild {
 			request.setUserSettingsFile(new File(this.temp, "settings.xml"));
 			request.setUpdateSnapshots(true);
 			request.setBatchMode(true);
+			// request.setMavenOpts("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=8000");
 			File target = new File(this.temp, "target");
 			target.mkdirs();
 			if (this.preparation != null) {

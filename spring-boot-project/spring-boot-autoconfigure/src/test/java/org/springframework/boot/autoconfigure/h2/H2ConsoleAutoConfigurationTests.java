@@ -102,12 +102,14 @@ class H2ConsoleAutoConfigurationTests {
 	@Test
 	void customInitParameters() {
 		this.contextRunner.withPropertyValues("spring.h2.console.enabled=true", "spring.h2.console.settings.trace=true",
-				"spring.h2.console.settings.web-allow-others=true").run((context) -> {
+				"spring.h2.console.settings.web-allow-others=true",
+				"spring.h2.console.settings.web-admin-password=abcd").run((context) -> {
 					assertThat(context).hasSingleBean(ServletRegistrationBean.class);
 					ServletRegistrationBean<?> registrationBean = context.getBean(ServletRegistrationBean.class);
 					assertThat(registrationBean.getUrlMappings()).contains("/h2-console/*");
 					assertThat(registrationBean.getInitParameters()).containsEntry("trace", "");
 					assertThat(registrationBean.getInitParameters()).containsEntry("webAllowOthers", "");
+					assertThat(registrationBean.getInitParameters()).containsEntry("webAdminPassword", "abcd");
 				});
 	}
 
